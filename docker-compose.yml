@@ -1,0 +1,75 @@
+services:
+  payments-api:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    image: payments-app-api:latest
+    container_name: payments-app-api
+    command: poetry run python -m app
+    volumes:
+      - .:/usr/src
+    ports:
+      - "${PAYMENTS_APP_PORT:-8000}:${PAYMENTS_APP_PORT:-8000}"
+    env_file:
+      - .env
+    networks:
+      - default
+    environment:
+      PAYMENTS_APP_HOST: 0.0.0.0
+      PAYMENTS_APP_DB_HOST: payments-db
+      PAYMENTS_APP_DB_PORT: ${PAYMENTS_APP_DB_PORT:-5432}
+      PAYMENTS_APP_DB_USER: ${PAYMENTS_APP_DB_USER:-development}
+      PAYMENTS_APP_DB_PASS: ${PAYMENTS_APP_DB_PASS:-development}
+      PAYMENTS_APP_DB_BASE: ${PAYMENTS_APP_DB_BASE:-payments_db}
+    depends_on:
+      db:
+        condition: service_healthy
+      migrator:
+        condition: service_completed_successfully
+
+  migrator:
+    image: payments-app-api:latest
+    container_name: payments-app-migrator
+    command: poetry run alembic upgrade head
+    volumes:
+      - .:/usr/src
+    env_file:
+      - .env
+    networks:
+      - default
+    environment:
+      PAYMENTS_APP_DB_HOST: payments-db
+      PAYMENTS_APP_DB_PORT: ${PAYMENTS_APP_DB_PORT:-5432}
+      PAYMENTS_APP_DB_USER: ${PAYMENTS_APP_DB_USER:-development}
+      PAYMENTS_APP_DB_PASS: ${PAYMENTS_APP_DB_PASS:-development}
+      PAYMENTS_APP_DB_BASE: ${PAYMENTS_APP_DB_BASE:-payments_db}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:16.3-bullseye
+    hostname: payments-db
+    container_name: payments-db
+    networks:
+      - default
+    environment:
+      POSTGRES_PASSWORD: "${PAYMENTS_APP_DB_PASS:-development}"
+      POSTGRES_USER: "${PAYMENTS_APP_DB_USER:-development}"
+      POSTGRES_DB: "${PAYMENTS_APP_DB_BASE:-payments_db}"
+    volumes:
+      - payments-db-data:/var/lib/postgresql/data
+    restart: always
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${PAYMENTS_APP_DB_USER:-development} -d ${PAYMENTS_APP_DB_BASE:-payments_db}",
+        ]
+      interval: 2s
+      timeout: 3s
+      retries: 40
+
+volumes:
+  payments-db-data:
+    name: payments-db-data
