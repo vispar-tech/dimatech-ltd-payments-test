@@ -1,5 +1,4 @@
 import logging
-import re
 
 from fastapi import Depends, HTTPException, status
 
@@ -19,46 +18,10 @@ class AuthService:
         """Init AuthService with UsersService."""
         self._users_service = users_service
         self.password_helper = PasswordHelper()
-        self.user_db = users_service
-
-    async def validate_password(
-        self,
-        password: str,
-    ) -> None:
-        """Validate password complexity efficiently and securely."""
-        if len(password) < 6:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Пароль должен быть не короче 6 символов",
-            )
-        checks = [
-            (
-                any(c.isdigit() for c in password),
-                "Пароль должен содержать хотя бы одну цифру",
-            ),
-            (
-                any(c.islower() for c in password),
-                "Пароль должен содержать хотя бы одну строчную букву",
-            ),
-            (
-                any(c.isupper() for c in password),
-                "Пароль должен содержать хотя бы одну заглавную букву",
-            ),
-            (
-                re.search(r"[\$&\+,:;=\?@#\|'<>\.\^\*\(\)%!-]", password),
-                "Пароль должен содержать хотя бы один специальный символ",
-            ),
-        ]
-        for condition, reason in checks:
-            if not condition:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=reason,
-                )
 
     async def login(self, email: str, password: str) -> ORJSONResponse:
         """Authenticate user and set auth cookies."""
-        user = await self._users_service.find_one_or_none(email=email)
+        user = await self._users_service.find_one_by_email(email=email)
         if user is None:
             logger.debug(f"Login failed for email: {email}")
             # Run the hasher to mitigate timing attack
@@ -77,7 +40,7 @@ class AuthService:
                 detail="Invalid email or password",
             )
         if updated_password_hash is not None:
-            await self.user_db.update_by_model(
+            await self._users_service.update_by_model(
                 user, hashed_password=updated_password_hash
             )
 
@@ -102,7 +65,7 @@ class AuthService:
 
     async def get_by_email(self, email: str) -> User:
         """Retrieve a user by email, or raise HTTP 404 if not found."""
-        user = await self._users_service.find_one_or_none(email=email)
+        user = await self._users_service.find_one_by_email(email=email)
         if user is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
@@ -121,7 +84,7 @@ class AuthService:
             )
 
         user_id = TokenService.decode_refresh_token(refresh_token)
-        user = await self._users_service.find_one_or_none(user_id=user_id)
+        user = await self._users_service.find_one_or_none_by_id(user_id)
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,

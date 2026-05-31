@@ -44,7 +44,7 @@ async def create_user(
     user: UserCreate, users_service: UsersService = Depends()
 ) -> User:
     """Create a new user and return their data (admin only)."""
-    is_user_exists = await users_service.exists(User.email == user.email)
+    is_user_exists = await users_service.exists_by_email(user.email)
     if is_user_exists:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

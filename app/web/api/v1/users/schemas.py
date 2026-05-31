@@ -1,4 +1,6 @@
-from pydantic import EmailStr
+import re
+
+from pydantic import EmailStr, field_validator
 
 from app.web.schemas import CamelCaseModel
 
@@ -15,6 +17,35 @@ class UserCreate(UserBase):
     """Fields required to create a new user."""
 
     password: str
+
+    @field_validator("password")
+    @classmethod
+    def validate_password(cls, pwd: str) -> str:
+        """Validate password strength according to policy."""
+        if len(pwd) < 6:
+            raise ValueError("Пароль должен быть не короче 6 символов")
+        checks = [
+            (
+                any(c.isdigit() for c in pwd),
+                "Пароль должен содержать хотя бы одну цифру",
+            ),
+            (
+                any(c.islower() for c in pwd),
+                "Пароль должен содержать хотя бы одну строчную букву",
+            ),
+            (
+                any(c.isupper() for c in pwd),
+                "Пароль должен содержать хотя бы одну заглавную букву",
+            ),
+            (
+                re.search(r"[\$&\+,:;=\?@#\|'<>\.\^\*\(\)%!-]", pwd),
+                "Пароль должен содержать хотя бы один специальный символ",
+            ),
+        ]
+        for condition, reason in checks:
+            if not condition:
+                raise ValueError(reason)
+        return pwd
 
 
 class UserRead(UserBase):

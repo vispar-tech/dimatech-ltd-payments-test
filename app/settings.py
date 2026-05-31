@@ -22,6 +22,8 @@ class Tags(StrEnum):
 
     USERS = "Users"
     AUTH = "Auth"
+    ACCOUNTS = "Accounts"
+    PAYMENTS = "Payments"
 
 
 class Settings(BaseSettings):

@@ -27,3 +27,11 @@ class UsersService(
         return await self.repository.find_paginated(
             *whereclauses, options=options, order_by=order_by
         )
+
+    async def exists_by_email(self, email: str) -> bool:
+        """Check if a user exists with the specified email."""
+        return await self.exists(self.repository.model.email == email)
+
+    async def find_one_by_email(self, email: str) -> User | None:
+        """Find a user by email."""
+        return await self.repository.find_one_or_none(email=email)
