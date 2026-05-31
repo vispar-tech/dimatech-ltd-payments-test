@@ -1,13 +1,11 @@
-from typing import TYPE_CHECKING
+from datetime import datetime
 
-from sqlalchemy import BigInteger, String
+from sqlalchemy import BigInteger, DateTime, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
-
-if TYPE_CHECKING:
-    from app.db.models.accounts import Account
-    from app.db.models.payments import Payment
+from app.db.models.accounts import Account
+from app.db.models.payments import Payment
 
 
 class User(Base):
@@ -24,12 +22,15 @@ class User(Base):
     is_admin: Mapped[bool] = mapped_column(
         default=False, nullable=False, server_default="false"
     )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=False), server_default=func.now(), nullable=False
+    )
 
     # Связи
-    accounts: Mapped[list["Account"]] = relationship(
+    accounts: Mapped[list[Account]] = relationship(
         "Account", back_populates="user", cascade="all, delete-orphan"
     )
 
-    payments: Mapped[list["Payment"]] = relationship(
+    payments: Mapped[list[Payment]] = relationship(
         "Payment", back_populates="user", cascade="all, delete-orphan"
     )

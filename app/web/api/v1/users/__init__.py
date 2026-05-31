@@ -1,0 +1,5 @@
+"""API module for users router."""
+
+from .views import router
+
+__all__ = ["router"]

@@ -1,4 +1,5 @@
 from enum import StrEnum
+from pathlib import Path
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -19,6 +20,9 @@ class LogLevel(StrEnum):
 class Tags(StrEnum):
     """Tags for API routes."""
 
+    USERS = "Users"
+    AUTH = "Auth"
+
 
 class Settings(BaseSettings):
     """Application settings."""
@@ -37,6 +41,7 @@ class Settings(BaseSettings):
 
     log_level: LogLevel = LogLevel.INFO
     log_file_enabled: bool = False
+    log_dir: Path = Path("logs")
 
     # Variables for the database
     db_host: str = "localhost"
