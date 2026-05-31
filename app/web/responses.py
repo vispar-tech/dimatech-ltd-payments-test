@@ -22,6 +22,7 @@ class ORJSONResponse(Response):
 
     def render(self, content: Any) -> bytes:
         """Render response using orjson."""
+        # need to handle handlers responses
         if isinstance(content, dict) and "result" in content:
             result = dict(content.get("result", {}))  # type: ignore
             base_response = BaseResponse(

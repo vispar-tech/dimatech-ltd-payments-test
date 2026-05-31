@@ -62,7 +62,7 @@ def build_response(
         code=status_code,
         msg=msg,
         ret_ext_info=ret_ext_info,
-    ).model_dump(by_alias=True)
+    ).model_dump(by_alias=False)
     response_dict["result"] = result if result is not None else {}
     return ORJSONResponse(
         status_code=status_code,

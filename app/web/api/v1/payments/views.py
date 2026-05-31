@@ -4,10 +4,71 @@ from app.db.models.users import User
 from app.services.auth.dependencies import get_current_admin_user, get_current_user
 from app.services.db.payments import PaymentsService
 from app.services.db.users import UsersService
-from app.web.api.v1.payments.schemas import PaymentRead
+from app.services.payments.exceptions import (
+    InvalidWebhookSignatureError,
+    PaymentWebhookError,
+    WebhookAccountOwnershipError,
+    WebhookUserNotFoundError,
+)
+from app.services.payments.service import PaymentService, get_payment_service
+from app.services.payments.types import PaymentWebhookPayload
+from app.web.api.v1.payments.schemas import (
+    PaymentRead,
+    PaymentWebhookRequest,
+    PaymentWebhookResponse,
+)
 from app.web.schemas import Paginated
 
 router = APIRouter(prefix="/payments")
+
+
+@router.post(
+    "/webhook",
+    response_model=PaymentWebhookResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Process payment webhook from external system",
+    operation_id="process_payment_webhook",
+)
+async def process_payment_webhook(
+    payload: PaymentWebhookRequest,
+    payment_service: PaymentService = Depends(get_payment_service),
+) -> PaymentWebhookResponse:
+    """Emulate webhook handling from an external payment provider."""
+    try:
+        result = await payment_service.process_webhook(
+            PaymentWebhookPayload(
+                transaction_id=payload.transaction_id,
+                user_id=payload.user_id,
+                account_id=payload.account_id,
+                amount=payload.amount,
+                signature=payload.signature,
+            )
+        )
+    except InvalidWebhookSignatureError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=exc.message,
+        ) from exc
+    except WebhookUserNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=exc.message,
+        ) from exc
+    except WebhookAccountOwnershipError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=exc.message,
+        ) from exc
+    except PaymentWebhookError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=exc.message,
+        ) from exc
+
+    return PaymentWebhookResponse(
+        payment=PaymentRead.model_validate(result.payment, from_attributes=True),
+        already_processed=result.already_processed,
+    )
 
 
 @router.get(

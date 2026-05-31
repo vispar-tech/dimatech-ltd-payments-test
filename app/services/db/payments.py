@@ -1,4 +1,6 @@
+from decimal import Decimal
 from typing import Any
+from uuid import UUID
 
 from sqlalchemy import ColumnExpressionArgument
 from sqlalchemy.sql.base import ExecutableOption
@@ -11,7 +13,7 @@ from app.services.db import BaseService
 class PaymentsService(
     BaseService[Payment, PaymentsRepository],
 ):
-    """Service for Payment model."""
+    """Database service for Payment persistence."""
 
     repository_class = PaymentsRepository
 
@@ -34,9 +36,31 @@ class PaymentsService(
         options: list[ExecutableOption] | None = None,
         order_by: list[str | ColumnExpressionArgument[Any]] | None = None,
     ) -> Any:
-        """Shortcut to retrieve paginated accounts filtered by user_id."""
+        """Retrieve paginated payments filtered by user_id."""
         return await self.find_paginated(
             self.repository.model.user_id == user_id,
             options=options,
             order_by=order_by,
         )
+
+    async def find_by_transaction_id(self, transaction_id: UUID) -> Payment | None:
+        """Find a payment by external transaction id."""
+        return await self.repository.find_one_or_none(transaction_id=transaction_id)
+
+    async def create_payment(
+        self,
+        *,
+        transaction_id: UUID,
+        user_id: int,
+        account_id: int,
+        amount: Decimal,
+    ) -> Payment:
+        """Persist a new payment record."""
+        payment = await self.add(
+            transaction_id=transaction_id,
+            user_id=user_id,
+            account_id=account_id,
+            amount=amount,
+        )
+        await self.repository.session.flush()
+        return await self.refresh(payment)
