@@ -3,8 +3,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from app.db.models.users import User
 from app.services.auth.dependencies import get_current_admin_user, get_current_user
 from app.services.db.accounts import AccountsService
+from app.services.db.payments import PaymentsService
 from app.services.db.users import UsersService
 from app.web.api.v1.accounts.schemas import AccountRead
+from app.web.api.v1.payments.schemas import PaymentRead
 from app.web.schemas import Paginated
 
 router = APIRouter(prefix="/accounts")
@@ -58,3 +60,38 @@ async def get_accounts_admin(
         )
 
     return await accounts_service.find_paginated_for_user(user_id)
+
+
+@router.get(
+    "/{account_id}/payments",
+    response_model=Paginated[PaymentRead],
+    summary="Get payments for given account_id (admin can query any, user only own)",
+    operation_id="get_payments_by_account_id",
+)
+async def get_payments_by_account_id(
+    account_id: int,
+    payments_service: PaymentsService = Depends(),
+    accounts_service: AccountsService = Depends(),
+    current_user: User = Depends(get_current_user),
+) -> Paginated[PaymentRead]:
+    """
+    Get all payments for given account_id.
+
+    If called by admin, any account_id can be accessed.
+    If called by normal user, only own accounts can be accessed.
+    """
+    account = await accounts_service.find_one_or_none_by_id(account_id)
+    if not account:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Account not found"
+        )
+
+    # Normal user: can only query own accounts
+    if not current_user.is_admin and account.user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not permitted to access payments for this account",
+        )
+
+    # Either admin or owner: return payments
+    return await payments_service.find_paginated_for_account(account_id)

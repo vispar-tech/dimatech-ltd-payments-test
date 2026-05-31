@@ -43,6 +43,19 @@ class PaymentsService(
             order_by=order_by,
         )
 
+    async def find_paginated_for_account(
+        self,
+        account_id: int,
+        options: list[ExecutableOption] | None = None,
+        order_by: list[str | ColumnExpressionArgument[Any]] | None = None,
+    ) -> Any:
+        """Retrieve paginated payments filtered by account_id."""
+        return await self.find_paginated(
+            self.repository.model.account_id == account_id,
+            options=options,
+            order_by=order_by,
+        )
+
     async def find_by_transaction_id(self, transaction_id: UUID) -> Payment | None:
         """Find a payment by external transaction id."""
         return await self.repository.find_one_or_none(transaction_id=transaction_id)
